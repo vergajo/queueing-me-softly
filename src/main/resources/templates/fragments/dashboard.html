@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div>
+
+    <!-- Add Player Form -->
+    <section class="add-player-section">
+        <form hx-post="/players/add" hx-target="#dashboard" class="add-player-form">
+            <input type="text" name="name" placeholder="Player name..." required class="input-name"/>
+            <select name="skillLevel" class="input-skill">
+                <option th:each="level : ${skillLevels}" th:value="${level}" th:text="${level}"></option>
+            </select>
+            <button type="submit" class="btn btn-primary">+ Add Player</button>
+        </form>
+    </section>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+
+        <!-- Left Panel: Waiting Queue -->
+        <section class="panel panel-queue">
+            <div class="panel-header">
+                <h2>⏳ Waiting Queue</h2>
+                <span class="count-badge" th:text="${waitingQueue.size()}">0</span>
+            </div>
+            <div class="player-list">
+                <div th:if="${waitingQueue.isEmpty()}" class="empty-state">
+                    <p>No players waiting</p>
+                    <p class="empty-hint">Add players above to get started</p>
+                </div>
+                <div th:each="player,iter : ${waitingQueue}" class="player-card"
+                     th:classappend="${iter.index == 0} ? 'player-card-longest' : (${player.gamesPlayed > 0} ? 'player-card-recent' : '')">
+                    <div class="player-info">
+                        <span class="player-name" th:text="${player.name}">Player</span>
+                        <div class="player-meta">
+                            <span class="meta-item" th:text="'🎮 ' + ${player.gamesPlayed}">🎮 0</span>
+                            <span class="meta-item" th:text="'⏱ ' + ${queueService.getWaitTime(player)}">⏱ 0m</span>
+                            <span class="skill-badge" th:text="${player.skillLevel}" th:classappend="'skill-' + ${player.skillLevel.name().toLowerCase()}">INT</span>
+                        </div>
+                    </div>
+                    <div class="player-actions">
+                        <button hx-post th:hx-post="'/players/' + ${player.id} + '/leave-queue'" class="btn btn-sm btn-ghost" title="Leave queue">✕</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Center Panel: Courts -->
+        <section class="panel panel-courts">
+            <div class="panel-header">
+                <h2>🏸 Courts</h2>
+                <button hx-post="/courts/auto-assign" class="btn btn-secondary">⚡ Auto Assign</button>
+            </div>
+            <div class="courts-grid">
+                <div th:each="court : ${courts}" class="court-card" th:classappend="${court.status.name() == 'IN_PLAY'} ? 'court-active' : 'court-available'">
+                    <div class="court-header">
+                        <h3 th:text="'Court ' + ${court.courtNumber}">Court 1</h3>
+                        <span class="court-status" th:text="${court.status}" th:classappend="'status-' + ${court.status.name().toLowerCase()}">AVAILABLE</span>
+                    </div>
+
+                    <div th:if="${court.status.name() == 'IN_PLAY'}" class="court-timer">
+                        <span class="timer-icon">⏱</span>
+                        <span class="timer-text">In Progress</span>
+                    </div>
+
+                    <div class="court-teams" th:if="${!court.teamA.isEmpty() || !court.teamB.isEmpty()}">
+                        <div class="team team-a">
+                            <span class="team-label">Team A</span>
+                            <div th:each="p : ${court.teamA}" class="team-player" th:text="${p.name}">Player</div>
+                        </div>
+                        <div class="team-vs">VS</div>
+                        <div class="team team-b">
+                            <span class="team-label">Team B</span>
+                            <div th:each="p : ${court.teamB}" class="team-player" th:text="${p.name}">Player</div>
+                        </div>
+                    </div>
+
+                    <div th:if="${court.teamA.isEmpty() && court.teamB.isEmpty()}" class="court-empty">
+                        <p>No match assigned</p>
+                    </div>
+
+                    <div class="court-actions">
+                        <button th:if="${court.status.name() == 'AVAILABLE' && court.teamA.isEmpty()}"
+                                hx-post th:hx-post="'/courts/' + ${court.courtNumber} + '/generate-match'"
+                                class="btn btn-primary btn-large">🎲 Generate Match</button>
+                        <button th:if="${court.status.name() == 'AVAILABLE' && !court.teamA.isEmpty()}"
+                                hx-post th:hx-post="'/courts/' + ${court.courtNumber} + '/start'"
+                                class="btn btn-success btn-large">▶ Start Match</button>
+                        <button th:if="${court.status.name() == 'IN_PLAY'}"
+                                hx-post th:hx-post="'/courts/' + ${court.courtNumber} + '/end'"
+                                class="btn btn-danger btn-large">⏹ End Match</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Stats -->
+        <section class="panel panel-stats">
+            <div class="panel-header">
+                <h2>📊 Statistics</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-value" th:text="${allPlayers.size()}">0</span>
+                    <span class="stat-label">Total Players</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" th:text="${gamesCompleted}">0</span>
+                    <span class="stat-label">Games Completed</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" th:text="${averageWaitTime}">0m</span>
+                    <span class="stat-label">Avg Wait Time</span>
+                </div>
+            </div>
+
+            <div class="leaderboard" th:if="${!leaderboard.isEmpty()}">
+                <h3>🏆 Leaderboard</h3>
+                <div th:each="player,iter : ${leaderboard}" class="leaderboard-item">
+                    <span class="leaderboard-rank" th:text="${iter.index + 1}">1</span>
+                    <span class="leaderboard-name" th:text="${player.name}">Player</span>
+                    <span class="leaderboard-games" th:text="${player.gamesPlayed} + ' games'">0 games</span>
+                </div>
+            </div>
+
+            <!-- Resting Players -->
+            <div class="resting-players" th:if="${!allPlayers.isEmpty()}">
+                <h3>😴 Resting</h3>
+                <div th:each="player : ${allPlayers}" th:if="${player.status.name() == 'RESTING'}" class="resting-item">
+                    <span th:text="${player.name}">Player</span>
+                    <button hx-post th:hx-post="'/players/' + ${player.id} + '/join-queue'" class="btn btn-sm btn-primary">+ Queue</button>
+                    <button hx-post th:hx-post="'/players/' + ${player.id} + '/remove'" class="btn btn-sm btn-ghost">✕</button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+</body>
+</html>
+
+
