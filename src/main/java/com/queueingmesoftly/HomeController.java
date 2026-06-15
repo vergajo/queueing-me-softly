@@ -1,7 +1,7 @@
 package com.queueingmesoftly;
 
-import com.queueingmesoftly.model.SkillLevel;
-import com.queueingmesoftly.service.QueueService;
+import com.queueingmesoftly.queue.domain.QueueService;
+import com.queueingmesoftly.queue.domain.SkillLevel;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
